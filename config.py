@@ -14,5 +14,20 @@ FILE_TYPES = {
     "Others": [],
 }
 
+IGNORED_FILE_NAMES = {
+    "desktop.ini",
+    "thumbs.db",
+}
+
+TEMP_EXTENSIONS = {
+    ".tmp",
+    ".part",
+    ".crdownload",
+    ".download",
+    ".partial",
+}
+
+DEBOUNCE_SECONDS = 2.0
+
 DOWNLOADS = Path.home() / "Downloads"
 LOG_FILE = Path(__file__).resolve().parent / "log.txt"
