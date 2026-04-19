@@ -1,12 +1,14 @@
 """Core logic for organizing files in the Downloads folder."""
 
 import ctypes
+import json
 import logging
 import shutil
 import threading
+from datetime import datetime
 from pathlib import Path
 
-from config import DOWNLOADS, FILE_TYPES, IGNORED_FILE_NAMES, LOG_FILE, TEMP_EXTENSIONS
+from config import DOWNLOADS, FILE_TYPES, IGNORED_FILE_NAMES, LOG_FILE, TEMP_EXTENSIONS, TRANSACTION_LOG, KEYWORD_RULES, EXACT_RULES
 
 ORGANIZE_LOCK = threading.Lock()
 
@@ -17,12 +19,32 @@ logging.basicConfig(
 )
 
 
-def get_folder(extension: str) -> str:
-    """Return destination folder name based on file extension."""
+def get_folder(file_name: str, extension: str = None) -> str:
+    """Return destination folder name with precedence: exact rules, keyword rules, extension match, Others fallback."""
+    # Priority 1: Check exact filename match
+    if file_name.lower() in {k.lower(): v for k, v in EXACT_RULES.items()}:
+        return EXACT_RULES[file_name]
+
+    # Priority 2: Check keyword patterns
+    for rule in KEYWORD_RULES:
+        pattern = rule.get("pattern", "")
+        case_sensitive = rule.get("case_sensitive", False)
+        compare_name = file_name if case_sensitive else file_name.lower()
+        compare_pattern = pattern if case_sensitive else pattern.lower()
+
+        if compare_pattern in compare_name:
+            return rule.get("target", "Others")
+
+    # Priority 3: Check extension match
+    if extension is None:
+        extension = ""
+    
     ext = extension.lower()
     for folder, extensions in FILE_TYPES.items():
         if ext in extensions:
             return folder
+
+    # Fallback
     return "Others"
 
 
@@ -96,6 +118,24 @@ def move_with_conflict_resolution(file_path: Path, target_folder: Path) -> Path:
             raise
 
 
+def log_transaction(source: Path, destination: Path, folder: str, status: str = "completed") -> None:
+    """Log a file move transaction as JSON Lines format for undo/reporting."""
+    transaction = {
+        "timestamp": datetime.now().isoformat(),
+        "action": "move",
+        "source": str(source),
+        "destination": str(destination),
+        "folder": folder,
+        "status": status,
+        "reversible": True,
+    }
+    try:
+        with open(TRANSACTION_LOG, "a") as f:
+            f.write(json.dumps(transaction) + "\n")
+    except OSError as exc:
+        logging.error("Failed to write transaction log: %s", exc)
+
+
 def organize() -> None:
     """Move files from Downloads into category subfolders."""
     if not DOWNLOADS.exists():
@@ -111,12 +151,13 @@ def organize() -> None:
                 logging.info("Skipped: %s", item.name)
                 continue
 
-            folder_name = get_folder(item.suffix)
+            folder_name = get_folder(item.name, item.suffix)
             target_folder = DOWNLOADS / folder_name
             target_folder.mkdir(exist_ok=True)
 
             try:
                 target_path = move_with_conflict_resolution(item, target_folder)
+                log_transaction(item, target_path, folder_name, status="completed")
                 logging.info("Moved: %s -> %s/", target_path.name, folder_name)
                 print(f"[OK] Moved: {target_path.name} -> {folder_name}/")
             except PermissionError:

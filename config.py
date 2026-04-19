@@ -17,6 +17,7 @@ FILE_TYPES = {
 IGNORED_FILE_NAMES = {
     "desktop.ini",
     "thumbs.db",
+    "desktop.ini",
 }
 
 TEMP_EXTENSIONS = {
@@ -31,3 +32,21 @@ DEBOUNCE_SECONDS = 2.0
 
 DOWNLOADS = Path.home() / "Downloads"
 LOG_FILE = Path(__file__).resolve().parent / "log.txt"
+TRANSACTION_LOG = Path(__file__).resolve().parent / "transactions.jsonl"
+
+# Keyword-based rules: match filename patterns before using extension
+# Format: {"pattern": "substring or regex", "target": "FolderName", "case_sensitive": False}
+KEYWORD_RULES = []
+
+# Exact filename rules: match entire filename
+# Format: {"filename": "name.ext", "target": "FolderName"}
+EXACT_RULES = {}
+TRANSACTION_LOG = Path(__file__).resolve().parent / "transactions.jsonl"
+
+# Keyword-based rules: match filename patterns before using extension
+# Format: {"pattern": "substring or regex", "target": "FolderName", "case_sensitive": False}
+KEYWORD_RULES = []
+
+# Exact filename rules: match entire filename
+# Format: {"filename": "name.ext", "target": "FolderName"}
+EXACT_RULES = {}
